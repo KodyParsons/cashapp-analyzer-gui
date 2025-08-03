@@ -38,6 +38,7 @@ class MainWindow:
         self.end_date = None
         self.analyzer = None
         self.current_figure = None
+        self.report_type_var = tk.StringVar(value="Summary Report")  # New variable for report type
         
         self.setup_ui()
     
@@ -50,25 +51,13 @@ class MainWindow:
         self.setup_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.setup_tab, text="Setup & Analysis")
         
-        # Results tab
+        # Results tab (text summary)
         self.results_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.results_tab, text="Summary Report")
         
-        # Income analysis tab
-        self.income_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.income_tab, text="Income Analysis")
-        
-        # Expense analysis tab
-        self.expense_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.expense_tab, text="Expense Analysis")
-        
-        # Cash flow analysis tab
-        self.cash_flow_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.cash_flow_tab, text="Cash Flow Analysis")
-        
-        # Top expenses tab
-        self.top_expenses_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.top_expenses_tab, text="Top Expenses")
+        # Dashboard tab (consolidated visualizations)
+        self.dashboard_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.dashboard_tab, text="Dashboard")
         
         # Data viewer tab
         self.data_tab = ttk.Frame(self.notebook)
@@ -76,10 +65,7 @@ class MainWindow:
         
         self.setup_setup_tab()
         self.setup_results_tab()
-        self.setup_income_tab()
-        self.setup_expense_tab()
-        self.setup_cash_flow_tab()
-        self.setup_top_expenses_tab()
+        self.setup_dashboard_tab()
         self.setup_data_tab()
     
     def setup_setup_tab(self):
@@ -100,6 +86,11 @@ class MainWindow:
         title_label = ttk.Label(scrollable_frame, text="Cash App Transaction Analyzer", 
                                font=('Arial', 16, 'bold'))
         title_label.pack(pady=20)
+        
+        # Welcome message
+        welcome_text = ttk.Label(scrollable_frame, text="Welcome! Follow the steps below to analyze your Cash App transactions.", 
+                                 font=('Arial', 12))
+        welcome_text.pack(pady=10)
         
         # CSV Import Section
         csv_frame = ttk.LabelFrame(scrollable_frame, text="Step 1: Import CSV File", padding=10)
@@ -130,18 +121,18 @@ class MainWindow:
         self.status_label = ttk.Label(analysis_frame, textvariable=self.status_var)
         self.status_label.pack(pady=5)
         
-        # Generate report button
+        # Report type selection and generate button
         button_frame = ttk.Frame(analysis_frame)
         button_frame.pack(pady=10)
         
-        self.generate_button = ttk.Button(button_frame, text="Generate Report", 
-                                        command=self.generate_report, state='disabled')
-        self.generate_button.pack(side='left', padx=5)
+        report_combo = ttk.Combobox(button_frame, textvariable=self.report_type_var,
+                                    values=["Summary Report", "Comprehensive PDF Report"], 
+                                    state='readonly', width=30)
+        report_combo.pack(side='left', padx=5)
         
-        # Generate PDF report button
-        self.pdf_button = ttk.Button(button_frame, text="Generate Comprehensive PDF Report", 
-                                   command=self.generate_pdf_report, state='disabled')
-        self.pdf_button.pack(side='left', padx=5)
+        self.generate_button = ttk.Button(button_frame, text="Generate", 
+                                        command=self.generate_selected_report, state='disabled')
+        self.generate_button.pack(side='left', padx=5)
         
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
@@ -165,49 +156,33 @@ class MainWindow:
         ttk.Button(export_frame, text="Export Report", 
                   command=self.export_report).pack(side='right')
     
-    def setup_income_tab(self):
-        # Income analysis visualizations container
-        self.income_frame = ttk.Frame(self.income_tab)
-        self.income_frame.pack(fill='both', expand=True, padx=10, pady=10)
+    def setup_dashboard_tab(self):
+        # Scrollable frame for dashboard
+        canvas = tk.Canvas(self.dashboard_tab)
+        scrollbar = ttk.Scrollbar(self.dashboard_tab, orient="vertical", command=canvas.yview)
+        self.dashboard_frame = ttk.Frame(canvas)
+        
+        self.dashboard_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=self.dashboard_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Bind mousewheel
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # Placeholder label
-        self.income_placeholder = ttk.Label(self.income_frame, 
-                                          text="Income analysis charts will appear here after analysis",
-                                          font=('Arial', 12))
-        self.income_placeholder.pack(expand=True)
-    
-    def setup_expense_tab(self):
-        # Expense analysis visualizations container
-        self.expense_frame = ttk.Frame(self.expense_tab)
-        self.expense_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        # Placeholder label
-        self.expense_placeholder = ttk.Label(self.expense_frame, 
-                                           text="Expense analysis charts will appear here after analysis",
-                                           font=('Arial', 12))
-        self.expense_placeholder.pack(expand=True)
-    
-    def setup_cash_flow_tab(self):
-        # Cash flow analysis visualizations container
-        self.cash_flow_frame = ttk.Frame(self.cash_flow_tab)
-        self.cash_flow_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        # Placeholder label
-        self.cash_flow_placeholder = ttk.Label(self.cash_flow_frame, 
-                                             text="Cash flow analysis charts will appear here after analysis",
+        self.dashboard_placeholder = ttk.Label(self.dashboard_frame, 
+                                             text="Visualizations will appear here after analysis",
                                              font=('Arial', 12))
-        self.cash_flow_placeholder.pack(expand=True)
-    
-    def setup_top_expenses_tab(self):
-        # Top expenses analysis visualizations container
-        self.top_expenses_frame = ttk.Frame(self.top_expenses_tab)
-        self.top_expenses_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        # Placeholder label
-        self.top_expenses_placeholder = ttk.Label(self.top_expenses_frame, 
-                                                text="Top expenses analysis charts will appear here after analysis",
-                                                font=('Arial', 12))
-        self.top_expenses_placeholder.pack(expand=True)
+        self.dashboard_placeholder.pack(expand=True, pady=20)
 
     def setup_data_tab(self):
         # Data viewer with search and filtering
@@ -308,12 +283,6 @@ class MainWindow:
                 self.generate_button.config(state='normal')
             else:
                 self.generate_button.config(state='disabled')
-        
-        if hasattr(self, 'pdf_button'):
-            if self.csv_file_path:
-                self.pdf_button.config(state='normal')
-            else:
-                self.pdf_button.config(state='disabled')
     
     def generate_report(self):
         """Generate the analysis report"""
@@ -385,57 +354,41 @@ class MainWindow:
         
         # Create visualizations in main thread
         try:
-            # Create income visualizations
+            # Create all figures
             income_fig = self.analyzer.create_income_visualizations(
                 start_date=self.start_date,
                 end_date=self.end_date
             )
-            self._display_income_visualizations(income_fig)
-            
-            # Create expense visualizations
             expense_fig = self.analyzer.create_expense_visualizations(
                 start_date=self.start_date,
                 end_date=self.end_date
             )
-            self._display_expense_visualizations(expense_fig)
-            
-            # Create cash flow visualizations
             cash_flow_fig = self.analyzer.create_cash_flow_visualizations(
                 start_date=self.start_date,
                 end_date=self.end_date
             )
-            self._display_cash_flow_visualizations(cash_flow_fig)
-            
-            # Create top expenses visualizations
             top_expenses_fig = self.analyzer.create_top_expenses_visualizations(
                 start_date=self.start_date,
                 end_date=self.end_date
             )
-            self._display_top_expenses_visualizations(top_expenses_fig)
+            
+            # Display in dashboard
+            self._display_dashboard_visualizations([
+                ("Income Analysis", income_fig),
+                ("Expense Analysis", expense_fig),
+                ("Cash Flow Analysis", cash_flow_fig),
+                ("Top Expenses", top_expenses_fig)
+            ])
             
         except Exception as e:
             print(f"Error creating visualizations: {e}")
             import traceback
             traceback.print_exc()
-            # Show error in income tab
-            for widget in self.income_frame.winfo_children():
+            # Show error in dashboard
+            for widget in self.dashboard_frame.winfo_children():
                 widget.destroy()
-            error_label = ttk.Label(self.income_frame, 
-                                  text=f"Error creating income visualizations: {str(e)}")
-            error_label.pack(expand=True)
-            
-            # Show error in expense tab
-            for widget in self.expense_frame.winfo_children():
-                widget.destroy()
-            error_label = ttk.Label(self.expense_frame, 
-                                  text=f"Error creating expense visualizations: {str(e)}")
-            error_label.pack(expand=True)
-            
-            # Show error in cash flow tab
-            for widget in self.cash_flow_frame.winfo_children():
-                widget.destroy()
-            error_label = ttk.Label(self.cash_flow_frame, 
-                                  text=f"Error creating cash flow visualizations: {str(e)}")
+            error_label = ttk.Label(self.dashboard_frame, 
+                                  text=f"Error creating visualizations: {str(e)}")
             error_label.pack(expand=True)
         
         # Final status update
@@ -455,186 +408,44 @@ class MainWindow:
         
         messagebox.showerror("Analysis Error", f"An error occurred during analysis:\n\n{error_message}")
     
-    def _display_income_visualizations(self, fig):
-        """Display income visualizations in the income tab"""
+    def _display_dashboard_visualizations(self, viz_list):
+        """Display all visualizations in the scrollable dashboard tab"""
         # Import matplotlib here to avoid startup errors
         try:
             import matplotlib
-            # Set TkAgg backend for GUI display
-            current_backend = matplotlib.get_backend()
-            if current_backend != 'TkAgg':
-                matplotlib.use('TkAgg')  # Set backend before importing pyplot
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            if matplotlib.get_backend() != 'TkAgg':
+                matplotlib.use('TkAgg')
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
         except ImportError:
-            # If matplotlib can't be imported, show error message
-            error_label = ttk.Label(self.income_frame, text="Matplotlib not available for visualizations")
+            error_label = ttk.Label(self.dashboard_frame, text="Matplotlib not available for visualizations")
             error_label.pack(pady=20)
             return
-            
+        
         # Clear existing content
-        for widget in self.income_frame.winfo_children():
+        for widget in self.dashboard_frame.winfo_children():
             widget.destroy()
         
-        try:
-            # Create matplotlib canvas with the figure
-            self.income_canvas = FigureCanvasTkAgg(fig, self.income_frame)
-            self.income_canvas.draw()
-            self.income_canvas.get_tk_widget().pack(fill='both', expand=True)
+        for title, fig in viz_list:
+            if fig is None:
+                continue
+            
+            # Section frame
+            section_frame = ttk.LabelFrame(self.dashboard_frame, text=title, padding=10)
+            section_frame.pack(fill='x', pady=10, expand=True)
+            
+            # Create canvas
+            canvas = FigureCanvasTkAgg(fig, section_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill='both', expand=True)
             
             # Add toolbar
-            toolbar_frame = ttk.Frame(self.income_frame)
+            toolbar_frame = ttk.Frame(section_frame)
             toolbar_frame.pack(fill='x')
-            
             try:
-                from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-                toolbar = NavigationToolbar2Tk(self.income_canvas, toolbar_frame)
+                toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
                 toolbar.update()
             except Exception as e:
                 print(f"Could not create navigation toolbar: {e}")
-            
-            self.income_figure = fig
-            
-        except Exception as e:
-            # If there's an error displaying the figure, show a message
-            error_label = ttk.Label(self.income_frame, 
-                                  text=f"Error displaying income visualizations: {str(e)}")
-            error_label.pack(expand=True)
-    
-    def _display_expense_visualizations(self, fig):
-        """Display expense visualizations in the expense tab"""
-        # Import matplotlib here to avoid startup errors
-        try:
-            import matplotlib
-            # Set TkAgg backend for GUI display
-            current_backend = matplotlib.get_backend()
-            if current_backend != 'TkAgg':
-                matplotlib.use('TkAgg')  # Set backend before importing pyplot
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        except ImportError:
-            # If matplotlib can't be imported, show error message
-            error_label = ttk.Label(self.expense_frame, text="Matplotlib not available for visualizations")
-            error_label.pack(pady=20)
-            return
-            
-        # Clear existing content
-        for widget in self.expense_frame.winfo_children():
-            widget.destroy()
-        
-        try:
-            # Create matplotlib canvas with the figure
-            self.expense_canvas = FigureCanvasTkAgg(fig, self.expense_frame)
-            self.expense_canvas.draw()
-            self.expense_canvas.get_tk_widget().pack(fill='both', expand=True)
-            
-            # Add toolbar
-            toolbar_frame = ttk.Frame(self.expense_frame)
-            toolbar_frame.pack(fill='x')
-            
-            try:
-                from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-                toolbar = NavigationToolbar2Tk(self.expense_canvas, toolbar_frame)
-                toolbar.update()
-            except Exception as e:
-                print(f"Could not create navigation toolbar: {e}")
-            
-            self.expense_figure = fig
-            
-        except Exception as e:
-            # If there's an error displaying the figure, show a message
-            error_label = ttk.Label(self.expense_frame, 
-                                  text=f"Error displaying expense visualizations: {str(e)}")
-            error_label.pack(expand=True)
-    
-    def _display_cash_flow_visualizations(self, fig):
-        """Display cash flow visualizations in the cash flow tab"""
-        # Import matplotlib here to avoid startup errors
-        try:
-            import matplotlib
-            # Set TkAgg backend for GUI display
-            current_backend = matplotlib.get_backend()
-            if current_backend != 'TkAgg':
-                matplotlib.use('TkAgg')  # Set backend before importing pyplot
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        except ImportError:
-            # If matplotlib can't be imported, show error message
-            error_label = ttk.Label(self.cash_flow_frame, text="Matplotlib not available for visualizations")
-            error_label.pack(pady=20)
-            return
-            
-        # Clear existing content
-        for widget in self.cash_flow_frame.winfo_children():
-            widget.destroy()
-        
-        try:
-            # Create matplotlib canvas with the figure
-            self.cash_flow_canvas = FigureCanvasTkAgg(fig, self.cash_flow_frame)
-            self.cash_flow_canvas.draw()
-            self.cash_flow_canvas.get_tk_widget().pack(fill='both', expand=True)
-            
-            # Add toolbar
-            toolbar_frame = ttk.Frame(self.cash_flow_frame)
-            toolbar_frame.pack(fill='x')
-            
-            try:
-                from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-                toolbar = NavigationToolbar2Tk(self.cash_flow_canvas, toolbar_frame)
-                toolbar.update()
-            except Exception as e:
-                print(f"Could not create navigation toolbar: {e}")
-            
-            self.cash_flow_figure = fig
-            
-        except Exception as e:
-            # If there's an error displaying the figure, show a message
-            error_label = ttk.Label(self.cash_flow_frame, 
-                                  text=f"Error displaying cash flow visualizations: {str(e)}")
-            error_label.pack(expand=True)
-    
-    def _display_top_expenses_visualizations(self, fig):
-        """Display top expenses visualizations in the top expenses tab"""
-        # Import matplotlib here to avoid startup errors
-        try:
-            import matplotlib
-            # Set TkAgg backend for GUI display
-            current_backend = matplotlib.get_backend()
-            if current_backend != 'TkAgg':
-                matplotlib.use('TkAgg')  # Set backend before importing pyplot
-            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        except ImportError:
-            # If matplotlib can't be imported, show error message
-            error_label = ttk.Label(self.top_expenses_frame, text="Matplotlib not available for visualizations")
-            error_label.pack(pady=20)
-            return
-            
-        # Clear existing content
-        for widget in self.top_expenses_frame.winfo_children():
-            widget.destroy()
-        
-        try:
-            # Create matplotlib canvas with the figure
-            self.top_expenses_canvas = FigureCanvasTkAgg(fig, self.top_expenses_frame)
-            self.top_expenses_canvas.draw()
-            self.top_expenses_canvas.get_tk_widget().pack(fill='both', expand=True)
-            
-            # Add toolbar
-            toolbar_frame = ttk.Frame(self.top_expenses_frame)
-            toolbar_frame.pack(fill='x')
-            
-            try:
-                from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-                toolbar = NavigationToolbar2Tk(self.top_expenses_canvas, toolbar_frame)
-                toolbar.update()
-            except Exception as e:
-                print(f"Could not create navigation toolbar: {e}")
-            
-            self.top_expenses_figure = fig
-            
-        except Exception as e:
-            # If there's an error displaying the figure, show a message
-            error_label = ttk.Label(self.top_expenses_frame, 
-                                  text=f"Error displaying top expenses visualizations: {str(e)}")
-            error_label.pack(pady=20)
-            print(f"Error displaying top expenses visualizations: {e}")
 
     def export_report(self):
         """Export the analysis report to a text file"""
@@ -665,7 +476,7 @@ class MainWindow:
             return
         
         # Disable button and start progress bar
-        self.pdf_button.config(state='disabled')
+        self.generate_button.config(state='disabled')
         self.progress_bar.start()
         self.status_var.set("Generating PDF report...")
         
@@ -722,7 +533,7 @@ class MainWindow:
         """Handle successful PDF generation"""
         # Stop progress bar
         self.progress_bar.stop()
-        self.pdf_button.config(state='normal')
+        self.generate_button.config(state='normal')
         self.status_var.set("PDF report generated successfully!")
         
         # Show success message with option to open
@@ -750,7 +561,7 @@ class MainWindow:
         """Handle PDF generation error"""
         # Stop progress bar and re-enable button
         self.progress_bar.stop()
-        self.pdf_button.config(state='normal')
+        self.generate_button.config(state='normal')
         self.status_var.set("PDF generation failed")
         
         messagebox.showerror("PDF Generation Error", 
@@ -888,6 +699,13 @@ class MainWindow:
         
         # Populate tree with all data
         self.populate_data_tree(self.analyzer.df)
+
+    def generate_selected_report(self):
+        report_type = self.report_type_var.get()
+        if report_type == "Summary Report":
+            self.generate_report()
+        elif report_type == "Comprehensive PDF Report":
+            self.generate_pdf_report()
 
 def main():
     # Try to use tkinterdnd2 for drag and drop if available

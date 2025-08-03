@@ -9,6 +9,8 @@ class DatePickerFrame(ttk.Frame):
         self.callback = callback
         self.start_date = None
         self.end_date = None
+        self.range_type_var = tk.StringVar(value="Last 6 Months")  # Default to Last 6 Months
+        self.manual_enabled = False
         self.setup_ui()
     
     def setup_ui(self):
@@ -16,86 +18,109 @@ class DatePickerFrame(ttk.Frame):
         title_label = ttk.Label(self, text="Select Date Range", font=('Arial', 14, 'bold'))
         title_label.grid(row=0, column=0, columnspan=4, pady=10, sticky='w')
         
+        # Predefined range dropdown
+        range_label = ttk.Label(self, text="Quick Select:", font=('Arial', 10, 'bold'))
+        range_label.grid(row=1, column=0, padx=5, pady=5, sticky='w')
+        
+        range_combo = ttk.Combobox(self, textvariable=self.range_type_var,
+                                   values=["Custom", "Last Month", "Last 3 Months", "Last 6 Months", "Last Year", "All Time"],
+                                   state='readonly', width=20)
+        range_combo.grid(row=1, column=1, columnspan=2, padx=5, pady=5, sticky='w')
+        range_combo.bind('<<ComboboxSelected>>', self.on_range_selected)
+        
         # Start date section
-        start_label = ttk.Label(self, text="Start Date:", font=('Arial', 10, 'bold'))
-        start_label.grid(row=1, column=0, padx=5, pady=5, sticky='w')
+        self.start_label = ttk.Label(self, text="Start Date:", font=('Arial', 10, 'bold'))
+        self.start_label.grid(row=2, column=0, padx=5, pady=5, sticky='w')
         
         # Start date inputs
         self.start_month_var = tk.StringVar()
         self.start_day_var = tk.StringVar()
         self.start_year_var = tk.StringVar()
         
-        start_month_combo = ttk.Combobox(self, textvariable=self.start_month_var, 
-                                       values=list(calendar.month_name)[1:], width=10, state='readonly')
-        start_month_combo.grid(row=2, column=0, padx=2, pady=5)
-        start_month_combo.bind('<<ComboboxSelected>>', self.on_date_change)
+        self.start_month_combo = ttk.Combobox(self, textvariable=self.start_month_var, 
+                                             values=list(calendar.month_name)[1:], width=10, state='readonly')
+        self.start_month_combo.grid(row=3, column=0, padx=2, pady=5)
+        self.start_month_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
-        start_day_combo = ttk.Combobox(self, textvariable=self.start_day_var, 
-                                     values=list(range(1, 32)), width=5, state='readonly')
-        start_day_combo.grid(row=2, column=1, padx=2, pady=5)
-        start_day_combo.bind('<<ComboboxSelected>>', self.on_date_change)
+        self.start_day_combo = ttk.Combobox(self, textvariable=self.start_day_var, 
+                                           values=list(range(1, 32)), width=5, state='readonly')
+        self.start_day_combo.grid(row=3, column=1, padx=2, pady=5)
+        self.start_day_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
         current_year = datetime.now().year
         years = list(range(current_year - 10, current_year + 2))
-        start_year_combo = ttk.Combobox(self, textvariable=self.start_year_var, 
-                                      values=years, width=8, state='readonly')
-        start_year_combo.grid(row=2, column=2, padx=2, pady=5)
-        start_year_combo.bind('<<ComboboxSelected>>', self.on_date_change)
+        self.start_year_combo = ttk.Combobox(self, textvariable=self.start_year_var, 
+                                            values=years, width=8, state='readonly')
+        self.start_year_combo.grid(row=3, column=2, padx=2, pady=5)
+        self.start_year_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
         # End date section
-        end_label = ttk.Label(self, text="End Date:", font=('Arial', 10, 'bold'))
-        end_label.grid(row=3, column=0, padx=5, pady=5, sticky='w')
+        self.end_label = ttk.Label(self, text="End Date:", font=('Arial', 10, 'bold'))
+        self.end_label.grid(row=4, column=0, padx=5, pady=5, sticky='w')
         
         # End date inputs
         self.end_month_var = tk.StringVar()
         self.end_day_var = tk.StringVar()
         self.end_year_var = tk.StringVar()
         
-        end_month_combo = ttk.Combobox(self, textvariable=self.end_month_var, 
-                                     values=list(calendar.month_name)[1:], width=10, state='readonly')
-        end_month_combo.grid(row=4, column=0, padx=2, pady=5)
-        end_month_combo.bind('<<ComboboxSelected>>', self.on_date_change)
+        self.end_month_combo = ttk.Combobox(self, textvariable=self.end_month_var, 
+                                           values=list(calendar.month_name)[1:], width=10, state='readonly')
+        self.end_month_combo.grid(row=5, column=0, padx=2, pady=5)
+        self.end_month_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
-        end_day_combo = ttk.Combobox(self, textvariable=self.end_day_var, 
-                                   values=list(range(1, 32)), width=5, state='readonly')
-        end_day_combo.grid(row=4, column=1, padx=2, pady=5)
-        end_day_combo.bind('<<ComboboxSelected>>', self.on_date_change)
+        self.end_day_combo = ttk.Combobox(self, textvariable=self.end_day_var, 
+                                         values=list(range(1, 32)), width=5, state='readonly')
+        self.end_day_combo.grid(row=5, column=1, padx=2, pady=5)
+        self.end_day_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
-        end_year_combo = ttk.Combobox(self, textvariable=self.end_year_var, 
-                                    values=years, width=8, state='readonly')
-        end_year_combo.grid(row=4, column=2, padx=2, pady=5)
-        end_year_combo.bind('<<ComboboxSelected>>', self.on_date_change)
-        
-        # Quick select buttons
-        quick_label = ttk.Label(self, text="Quick Select:", font=('Arial', 10, 'bold'))
-        quick_label.grid(row=5, column=0, padx=5, pady=(15, 5), sticky='w')
-        
-        button_frame = ttk.Frame(self)
-        button_frame.grid(row=6, column=0, columnspan=4, pady=5, sticky='ew')
-        
-        ttk.Button(button_frame, text="Last Month", 
-                  command=self.set_last_month).pack(side='left', padx=2)
-        ttk.Button(button_frame, text="Last 3 Months", 
-                  command=lambda: self.set_quick_range(3)).pack(side='left', padx=2)
-        ttk.Button(button_frame, text="Last 6 Months", 
-                  command=lambda: self.set_quick_range(6)).pack(side='left', padx=2)
-        ttk.Button(button_frame, text="Last Year", 
-                  command=lambda: self.set_quick_range(12)).pack(side='left', padx=2)
-        ttk.Button(button_frame, text="All Time", 
-                  command=self.set_all_time).pack(side='left', padx=2)
+        self.end_year_combo = ttk.Combobox(self, textvariable=self.end_year_var, 
+                                          values=years, width=8, state='readonly')
+        self.end_year_combo.grid(row=5, column=2, padx=2, pady=5)
+        self.end_year_combo.bind('<<ComboboxSelected>>', self.on_date_change)
         
         # Current selection display
         self.selection_var = tk.StringVar()
         self.selection_label = ttk.Label(self, textvariable=self.selection_var, 
                                        font=('Arial', 9), foreground='blue')
-        self.selection_label.grid(row=7, column=0, columnspan=4, pady=10, sticky='w')
+        self.selection_label.grid(row=6, column=0, columnspan=4, pady=10, sticky='w')
         
-        # Clear and set default
+        # Clear button
         clear_button = ttk.Button(self, text="Clear Selection", command=self.clear_dates)
-        clear_button.grid(row=8, column=0, pady=5, sticky='w')
+        clear_button.grid(row=7, column=0, pady=5, sticky='w')
         
-        # Set default to last 6 months after a short delay to ensure parent is initialized
-        self.after(100, lambda: self.set_quick_range(6))
+        # Set default to last 6 months
+        self.after(100, self.on_range_selected)
+        
+        # Initially disable manual pickers
+        self.toggle_manual_pickers(False)
+    
+    def toggle_manual_pickers(self, enable):
+        state = 'normal' if enable else 'disabled'
+        self.start_month_combo.config(state=state)
+        self.start_day_combo.config(state=state)
+        self.start_year_combo.config(state=state)
+        self.end_month_combo.config(state=state)
+        self.end_day_combo.config(state=state)
+        self.end_year_combo.config(state=state)
+        self.manual_enabled = enable
+
+    def on_range_selected(self, event=None):
+        range_type = self.range_type_var.get()
+        if range_type == "Custom":
+            self.toggle_manual_pickers(True)
+            self.clear_dates()
+        else:
+            self.toggle_manual_pickers(False)
+            if range_type == "Last Month":
+                self.set_last_month()
+            elif range_type == "Last 3 Months":
+                self.set_quick_range(3)
+            elif range_type == "Last 6 Months":
+                self.set_quick_range(6)
+            elif range_type == "Last Year":
+                self.set_quick_range(12)
+            elif range_type == "All Time":
+                self.set_all_time()
     
     def on_date_change(self, event=None):
         """Handle date change events"""
