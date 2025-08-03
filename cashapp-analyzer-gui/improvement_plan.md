@@ -129,17 +129,17 @@ This document outlines the detailed plan for improving the GUI look and monthly 
 ## TODO Checklist
 
 - [x] Phase 1.1: Backup Current Codebase
-- [ ] Phase 1.2: Install/Verify Dependencies
-- [ ] Phase 1.3: Review Current Implementations
-- [ ] Phase 2.1: Fix macOS Trackpad Scrolling
-- [ ] Phase 2.2: Fix Visualization Formatting and Overlap in Dashboard
-- [ ] Phase 3.1: Apply Consistent Theme and Styling
-- [ ] Phase 3.2: Refine Layout and Components
-- [ ] Phase 3.3: Add Visual Feedback and Animations
-- [ ] Phase 4.1: Add New Sections and Content to PDF
-- [ ] Phase 4.2: Improve Styling and Layout in PDF
-- [ ] Phase 4.3: Add Customization Options for PDF
-- [ ] Phase 5.1: Unit and Integration Tests
-- [ ] Phase 5.2: Manual Testing on macOS
-- [ ] Phase 5.3: Performance and Edge Cases
-- [ ] Phase 6: Deployment and Follow-Up 
+- [x] Phase 1.2: Install/Verify Dependencies
+- [x] Phase 1.3: Review Current Implementations
+- [x] Phase 2.1: Fix macOS Trackpad Scrolling
+- [x] Phase 2.2: Fix Visualization Formatting and Overlap in Dashboard
+- [x] Phase 3.1: Apply Consistent Theme and Styling
+- [x] Phase 3.2: Refine Layout and Components
+- [x] Phase 3.3: Add Visual Feedback and Animations
+- [x] Phase 4.1: Add New Sections and Content to PDF
+- [x] Phase 4.2: Improve Styling and Layout in PDF
+- [x] Phase 4.3: Add Customization Options for PDF
+- [x] Phase 5.1: Unit and Integration Tests
+- [x] Phase 5.2: Manual Testing on macOS
+- [x] Phase 5.3: Performance and Edge Cases
+- [x] Phase 6: Deployment and Follow-Up 

@@ -3,6 +3,8 @@ from tkinter import ttk
 from datetime import datetime, timedelta
 import calendar
 
+from tkcalendar import Calendar
+
 class DatePickerFrame(ttk.Frame):
     def __init__(self, parent, callback=None):
         super().__init__(parent)
@@ -87,6 +89,13 @@ class DatePickerFrame(ttk.Frame):
         # Clear button
         clear_button = ttk.Button(self, text="Clear Selection", command=self.clear_dates)
         clear_button.grid(row=7, column=0, pady=5, sticky='w')
+        
+        # Calendar buttons
+        start_cal_btn = ttk.Button(self, text="📅 Start", command=self.show_start_calendar, width=8)
+        start_cal_btn.grid(row=3, column=3, padx=5, pady=5)
+        
+        end_cal_btn = ttk.Button(self, text="📅 End", command=self.show_end_calendar, width=8)
+        end_cal_btn.grid(row=5, column=3, padx=5, pady=5)
         
         # Set default to last 6 months
         self.after(100, self.on_range_selected)
@@ -231,3 +240,37 @@ class DatePickerFrame(ttk.Frame):
     def get_date_range(self):
         """Get the currently selected date range"""
         return self.start_date, self.end_date
+
+    def show_start_calendar(self):
+        self.show_calendar(is_start=True)
+    
+    def show_end_calendar(self):
+        self.show_calendar(is_start=False)
+    
+    def show_calendar(self, is_start):
+        top = tk.Toplevel(self)
+        top.title("Select Date")
+        
+        cal = Calendar(top, selectmode='day', year=datetime.now().year, month=datetime.now().month, day=datetime.now().day)
+        cal.pack(pady=10)
+        
+        def select_date():
+            selected = cal.get_date()
+            try:
+                date_obj = datetime.strptime(selected, '%m/%d/%y')
+                if is_start:
+                    self.start_date = date_obj
+                    self.start_month_var.set(calendar.month_name[date_obj.month])
+                    self.start_day_var.set(str(date_obj.day))
+                    self.start_year_var.set(str(date_obj.year))
+                else:
+                    self.end_date = date_obj
+                    self.end_month_var.set(calendar.month_name[date_obj.month])
+                    self.end_day_var.set(str(date_obj.day))
+                    self.end_year_var.set(str(date_obj.year))
+                self.update_display()
+            except ValueError:
+                pass
+            top.destroy()
+        
+        ttk.Button(top, text="Select", command=select_date).pack(pady=5)

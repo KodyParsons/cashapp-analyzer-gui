@@ -32,6 +32,19 @@ class MainWindow:
         self.master.geometry("1000x700")
         self.master.state('zoomed')  # Maximize window on Windows
         
+        # Apply theme
+        style = ttk.Style()
+        style.theme_use('clam')
+        # Customize colors (Cash App inspired: green accents)
+        style.configure('.', background='#f0f0f0', foreground='#000000')
+        style.configure('TLabel', font=('Helvetica', 10))
+        style.configure('TButton', background='#00d631', foreground='black', font=('Helvetica', 10, 'bold'))
+        style.map('TButton', background=[('active', '#00b82a')], foreground=[('active', 'white')])
+        style.configure('TCombobox', font=('Helvetica', 10))
+        style.configure('TFrame', background='#f0f0f0')
+        style.configure('TLabelframe', background='#f0f0f0', font=('Helvetica', 12, 'bold'))
+        style.configure('TLabelframe.Label', background='#f0f0f0', foreground='#00d631')
+        
         # Variables
         self.csv_file_path = None
         self.start_date = None
@@ -112,8 +125,7 @@ class MainWindow:
         
         # Progress bar
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(analysis_frame, variable=self.progress_var, 
-                                          mode='indeterminate')
+        self.progress_bar = ttk.Progressbar(analysis_frame, variable=self.progress_var, mode='determinate', maximum=100)
         self.progress_bar.pack(fill='x', pady=5)
         
         # Status label
@@ -134,14 +146,42 @@ class MainWindow:
                                         command=self.generate_selected_report, state='disabled')
         self.generate_button.pack(side='left', padx=5)
         
+        # PDF options (visible when Comprehensive PDF selected)
+        self.pdf_options_frame = ttk.Frame(analysis_frame)
+        self.pdf_options_frame.pack(pady=5)
+        
+        self.include_top_expenses_var = tk.BooleanVar(value=True)
+        top_chk = ttk.Checkbutton(self.pdf_options_frame, text="Include Top Expenses", variable=self.include_top_expenses_var)
+        top_chk.pack(side='left', padx=5)
+        
+        ttk.Label(self.pdf_options_frame, text="Month Offset:").pack(side='left', padx=5)
+        self.month_offset_var = tk.IntVar(value=1)
+        offset_entry = ttk.Entry(self.pdf_options_frame, textvariable=self.month_offset_var, width=5)
+        offset_entry.pack(side='left', padx=5)
+        
+        # Show/hide based on report type
+        def toggle_pdf_options(event=None):
+            if self.report_type_var.get() == "Comprehensive PDF Report":
+                self.pdf_options_frame.pack(pady=5)
+            else:
+                self.pdf_options_frame.pack_forget()
+        self.report_type_var.trace('w', toggle_pdf_options)
+        toggle_pdf_options()
+        
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Bind mousewheel to canvas
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Bind mousewheel
+        def _on_trackpad_scroll(event):
+            if event.delta:
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            elif event.num:
+                canvas.yview_scroll(-1 if event.num == 5 else 1, "units")
+        canvas.bind_all("<MouseWheel>", _on_trackpad_scroll)
+        canvas.bind_all("<Button-4>", _on_trackpad_scroll)
+        canvas.bind_all("<Button-5>", _on_trackpad_scroll)
+        canvas.focus_set()
     
     def setup_results_tab(self):
         # Results text area
@@ -174,9 +214,15 @@ class MainWindow:
         scrollbar.pack(side="right", fill="y")
         
         # Bind mousewheel
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        def _on_trackpad_scroll(event):
+            if event.delta:
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            elif event.num:
+                canvas.yview_scroll(-1 if event.num == 5 else 1, "units")
+        canvas.bind_all("<MouseWheel>", _on_trackpad_scroll)
+        canvas.bind_all("<Button-4>", _on_trackpad_scroll)
+        canvas.bind_all("<Button-5>", _on_trackpad_scroll)
+        canvas.focus_set()
         
         # Placeholder label
         self.dashboard_placeholder = ttk.Label(self.dashboard_frame, 
@@ -184,6 +230,12 @@ class MainWindow:
                                              font=('Arial', 12))
         self.dashboard_placeholder.pack(expand=True, pady=20)
 
+        # Add refresh button
+        refresh_frame = ttk.Frame(self.dashboard_tab)
+        refresh_frame.pack(fill='x', pady=5)
+        refresh_btn = ttk.Button(refresh_frame, text="Refresh Dashboard", command=self.refresh_dashboard)
+        refresh_btn.pack(side='right', padx=10)
+    
     def setup_data_tab(self):
         # Data viewer with search and filtering
         data_container = ttk.Frame(self.data_tab)
@@ -425,27 +477,77 @@ class MainWindow:
         for widget in self.dashboard_frame.winfo_children():
             widget.destroy()
         
+        # Use grid layout for sections
+        self.dashboard_frame.columnconfigure(0, weight=1)
+        row = 0
+        canvases = []  # Track canvases for resizing
+        
+        def resize_figures(event):
+            # Dynamically resize figures based on window width
+            new_width = event.width / 100  # Approximate inches
+            for canvas, fig in canvases:
+                fig.set_size_inches(new_width * 0.9, 8)  # Maintain aspect
+                canvas.draw()
+        
+        self.dashboard_frame.bind('<Configure>', resize_figures)
+        
         for title, fig in viz_list:
             if fig is None:
                 continue
             
             # Section frame
             section_frame = ttk.LabelFrame(self.dashboard_frame, text=title, padding=10)
-            section_frame.pack(fill='x', pady=10, expand=True)
+            section_frame.grid(row=row, column=0, sticky='nsew', pady=10)
+            section_frame.columnconfigure(0, weight=1)
+            row += 1
             
-            # Create canvas
+            # Add tooltip
+            self.create_tooltip(section_frame, f"{title} visualization")
+            
+            # Create canvas with fixed height
             canvas = FigureCanvasTkAgg(fig, section_frame)
             canvas.draw()
-            canvas.get_tk_widget().pack(fill='both', expand=True)
+            tk_widget = canvas.get_tk_widget()
+            tk_widget.grid(row=0, column=0, sticky='nsew')
+            tk_widget.config(height=400)  # Fixed height to prevent overlap
+            canvases.append((canvas, fig))
             
             # Add toolbar
             toolbar_frame = ttk.Frame(section_frame)
-            toolbar_frame.pack(fill='x')
+            toolbar_frame.grid(row=1, column=0, sticky='ew')
             try:
                 toolbar = NavigationToolbar2Tk(canvas, toolbar_frame)
                 toolbar.update()
             except Exception as e:
                 print(f"Could not create navigation toolbar: {e}")
+
+    def refresh_dashboard(self):
+        if self.analyzer:
+            self._on_analysis_complete(self.analyzer.df, None, self.analyzer.generate_report(
+                start_date=self.start_date, end_date=self.end_date))
+        else:
+            messagebox.showwarning("Warning", "Please run analysis first")
+
+    def create_tooltip(self, widget, text):
+        tooltip = tk.Toplevel(widget)
+        tooltip.withdraw()
+        tooltip.wm_overrideredirect(True)
+        label = tk.Label(tooltip, text=text, background="yellow", relief='solid', borderwidth=1, padx=3, pady=3)
+        label.pack()
+        
+        def enter(event):
+            x = y = 0
+            x, y, cx, cy = widget.bbox("insert")
+            x += widget.winfo_rootx() + 25
+            y += widget.winfo_rooty() + 20
+            tooltip.wm_geometry(f"+{x}+{y}")
+            tooltip.deiconify()
+        
+        def leave(event):
+            tooltip.withdraw()
+        
+        widget.bind("<Enter>", enter)
+        widget.bind("<Leave>", leave)
 
     def export_report(self):
         """Export the analysis report to a text file"""
@@ -499,7 +601,9 @@ class MainWindow:
             
             # Try comprehensive PDF generation first (defaults to prior month)
             pdf_path = self.analyzer.generate_comprehensive_pdf_report(
-                include_all_charts=True  # Include all 4 chart types
+                include_all_charts=True,
+                month_offset=self.month_offset_var.get(),
+                # Add more options as needed
             )
             
             # Success callback

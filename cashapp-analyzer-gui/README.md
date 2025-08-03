@@ -18,6 +18,14 @@ A comprehensive desktop application for analyzing Cash App transaction data with
 - **Configurable Settings**: Customizable chart sizes, DPI, and report parameters
 - **Professional Packaging**: Build standalone EXE files for easy distribution
 
+## New Features
+- Improved macOS trackpad scrolling
+- Enhanced dashboard layout to prevent overlaps
+- Consistent theme and styling
+- Calendar widgets for date selection
+- Refresh button in dashboard
+- Enhanced PDF reports with new sections, styling, and custom options
+
 ## Screenshots
 
 The application features three main tabs:

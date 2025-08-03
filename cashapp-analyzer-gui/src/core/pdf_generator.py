@@ -16,6 +16,16 @@ except ImportError:
 from utils.config import config
 from utils.logger import logger, log_performance
 
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import TableOfContents, HRFlowable
+
 class PDFGenerator:
     """Enhanced PDF generator that reuses existing visualization methods"""
     
@@ -86,7 +96,24 @@ class PDFGenerator:
         title_style = self._create_title_style(styles)
         heading_style = self._create_heading_style(styles)
         
+        # Register custom font (assuming Arial available)
+        pdfmetrics.registerFont(TTFont('CustomFont', 'Arial.ttf'))  # Adjust path if needed
+        title_style.fontName = 'CustomFont'
+        heading_style.fontName = 'CustomFont'
+        
         # Build PDF content
+        # Add cover page
+        story.append(Paragraph("Cash App Monthly Report", title_style))
+        story.append(Spacer(1, inch))
+        story.append(Paragraph(f"Generated on {datetime.now().strftime('%Y-%m-%d')}", styles['Normal']))
+        story.append(PageBreak())
+        
+        # Add TOC
+        toc = TableOfContents()
+        toc.levelStyles = [styles['Heading1'], styles['Heading2']]
+        story.append(toc)
+        story.append(PageBreak())
+        
         story.extend(self._create_title_section(start_date, end_date, title_style))
         story.extend(self._create_executive_summary(month_data, styles))
         story.extend(self._create_detailed_analysis(month_data, heading_style, styles))
@@ -95,7 +122,14 @@ class PDFGenerator:
             story.extend(self._create_comprehensive_visualizations(start_date, end_date, heading_style))
         
         # Build PDF
-        doc.build(story)
+        def myLaterPages(canvas, doc):
+            canvas.saveState()
+            canvas.setFont('CustomFont', 8)
+            canvas.drawString(INCH_UNIT, 0.75 * INCH_UNIT, f"Page {doc.page}")
+            canvas.drawString(4 * INCH_UNIT, 0.75 * INCH_UNIT, f"Cash App Report - {start_date.strftime('%B %Y')}")
+            canvas.restoreState()
+        
+        doc.build(story, onFirstPage=myLaterPages, onLaterPages=myLaterPages)
         
         # Cleanup
         self.cleanup_temp_files()
@@ -307,9 +341,10 @@ class PDFGenerator:
                 self.temp_files.append(chart_path)
                   # Add chart to PDF
                 story.append(Image(chart_path, 
-                                 width=config.pdf_chart_width*INCH_UNIT, 
-                                 height=config.pdf_chart_height*INCH_UNIT))
-                story.append(Spacer(1, 20))
+                                 width=6*INCH_UNIT, 
+                                 height=4*INCH_UNIT))
+                story.append(Paragraph(chart_config['description'], styles['Normal']))
+                story.append(Spacer(1, 12))
                 
                 # Add page break between charts (except for the last one)
                 if i < len(chart_configs) - 1:
@@ -323,6 +358,66 @@ class PDFGenerator:
                 from reportlab.platypus import Paragraph
                 story.append(Paragraph(error_msg, heading_style))
                 story.append(Spacer(1, 20))
+        
+        # Top 5 Expenses Table
+        story.append(Paragraph("Top 5 Expenses", heading_style))
+        
+        top_expenses = month_data[month_data['Net_Amount'] < 0].groupby('Description')['Net_Amount'].sum().abs().nlargest(5)
+        if not top_expenses.empty:
+            top_table_data = [['Description', 'Amount']]
+            for desc, amount in top_expenses.items():
+                top_table_data.append([desc[:40], f"${amount:,.2f}"])
+            
+            top_table = Table(top_table_data)
+            top_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ]))
+            story.append(top_table)
+            story.append(Spacer(1, 20))
+        
+        # Investment Summary
+        story.append(Paragraph("Investment Summary", heading_style))
+        investment_data = month_data[(month_data['Net_Amount'] < 0) & month_data['Category'].str.contains('Investment')]
+        if not investment_data.empty:
+            inv_summary = investment_data.groupby('Category')['Net_Amount'].sum().abs()
+            inv_table_data = [['Category', 'Amount']]
+            for cat, amt in inv_summary.items():
+                inv_table_data.append([cat, f"${amt:,.2f}"])
+            inv_table = Table(inv_table_data)
+            inv_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(inv_table)
+            story.append(Spacer(1, 20))
+        
+        # Year-over-Year Comparison (simple text for now)
+        story.append(Paragraph("Year-over-Year Comparison", heading_style))
+        prev_year_start = start_date.replace(year=start_date.year - 1)
+        prev_year_end = end_date.replace(year=end_date.year - 1)
+        prev_data = self.analyzer.df[(self.analyzer.df['Date'] >= prev_year_start) & (self.analyzer.df['Date'] <= prev_year_end)]
+        if not prev_data.empty:
+            prev_net = prev_data['Net_Amount'].sum()
+            current_net = month_data['Net_Amount'].sum()
+            yoy_text = f"Current Period Net: ${current_net:,.2f}<br/>Previous Year Net: ${prev_net:,.2f}<br/>Change: ${current_net - prev_net:,.2f}"
+            story.append(Paragraph(yoy_text, styles['Normal']))
+        else:
+            story.append(Paragraph("No previous year data available", styles['Normal']))
+        story.append(Spacer(1, 20))
         
         return story
     
